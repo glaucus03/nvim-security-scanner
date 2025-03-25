@@ -1,7 +1,7 @@
 local M = {}
 
 -- 最新のレポートデータ
-local last_report = {
+M.last_report = {
   plugin_name = "",
   findings = {},
   timestamp = 0
@@ -16,17 +16,47 @@ local risk_highlights = {
 
 -- 結果を保存
 function M.save_report(plugin_name, findings)
-  last_report = {
+  M.last_report = {
     plugin_name = plugin_name,
     findings = findings,
     timestamp = os.time()
   }
+  
+  -- デバッグ用ログ
+  vim.api.nvim_echo({{"レポート保存: " .. plugin_name .. " (" .. #findings .. "件)", "None"}}, false, {})
+end
+
+-- デバッグ用: テストレポートを作成
+function M.create_test_report()
+  -- テスト用サンプルレポート
+  M.last_report = {
+    plugin_name = "test-plugin",
+    findings = {
+      {
+        file = "/path/to/test.lua",
+        line = 10,
+        line_content = "os.execute('rm -rf /')",
+        pattern = "os%.execute",
+        category = "system_execution",
+        risk = "high",
+        description = "システムコマンドを実行できるため、悪意のあるコードが実行される可能性があります",
+        legitimate_uses = "外部ツールの実行、プロジェクトのビルド"
+      }
+    },
+    timestamp = os.time()
+  }
+  return true
 end
 
 -- 最新のレポートを表示
 function M.show_last_report()
-  if not last_report.plugin_name or #last_report.findings == 0 then
-    vim.notify("利用可能なレポートがありません", vim.log.levels.INFO)
+  -- 開発モードならデバッグメッセージを表示
+  if vim.fn.exists("g:security_scanner_debug") == 1 and vim.g.security_scanner_debug == 1 then
+    vim.api.nvim_echo({{"レポート状態: " .. vim.inspect(M.last_report ~= nil), "WarningMsg"}}, false, {})
+  end
+
+  if not M.last_report or not M.last_report.plugin_name or not M.last_report.findings or #M.last_report.findings == 0 then
+    vim.notify("利用可能なレポートがありません...", vim.log.levels.INFO)
     return
   end
   
@@ -37,7 +67,7 @@ function M.show_last_report()
   vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
   
   -- バッファの名前を設定
-  local buf_name = "SecurityReport_" .. last_report.plugin_name
+  local buf_name = "SecurityReport_" .. M.last_report.plugin_name
   vim.api.nvim_buf_set_name(bufnr, buf_name)
   
   -- レポートの内容を生成
@@ -65,15 +95,22 @@ end
 -- レポート内容を生成
 function M.generate_report_content()
   local lines = {}
-  local findings = last_report.findings
+  
+  -- last_reportが有効かチェック
+  if not M.last_report or not M.last_report.findings then
+    return lines
+  end
+  
+  local findings = M.last_report.findings
   
   -- タイトルとサマリー
-  table.insert(lines, "# セキュリティスキャンレポート: " .. last_report.plugin_name)
+  table.insert(lines, "# セキュリティスキャンレポート: " .. M.last_report.plugin_name)
   table.insert(lines, "")
   
   -- タイムスタンプ
-  local date_str = os.date("%Y-%m-%d %H:%M:%S", last_report.timestamp)
+  local date_str = os.date("%Y-%m-%d %H:%M:%S", M.last_report.timestamp)
   table.insert(lines, "スキャン日時: " .. date_str)
+  table.insert(lines, "検出件数: " .. #findings .. " 件")
   table.insert(lines, "")
   
   -- リスクサマリー
