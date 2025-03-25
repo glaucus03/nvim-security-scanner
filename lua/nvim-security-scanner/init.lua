@@ -57,8 +57,12 @@ function M.setup(user_config)
   -- デフォルト設定とユーザー設定をマージ
   M.config = vim.tbl_deep_extend("force", default_config, user_config or {})
   
+  -- 各モジュールを事前ロード
+  local scanner = require("nvim-security-scanner.scanner")
+  require("nvim-security-scanner.report")
+  
   -- スキャナーモジュールを初期化
-  require("nvim-security-scanner.scanner").init(M.config)
+  scanner.init(M.config)
   
   -- プラグインが無効化されている場合は早期リターン
   if not M.config.enabled then

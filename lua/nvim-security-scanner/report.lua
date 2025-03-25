@@ -7,6 +7,24 @@ local last_report = {
   timestamp = 0
 }
 
+-- デバッグログ
+local function debug_log(msg, level)
+  -- configがロードされていない場合は警告レベルで表示
+  local log_level = level or vim.log.levels.DEBUG
+  
+  -- プラグインの設定をロード
+  local config = {}
+  local success, nvim_security_scanner = pcall(require, "nvim-security-scanner")
+  if success and nvim_security_scanner.config then
+    config = nvim_security_scanner.config
+  end
+  
+  -- デバッグモードが有効な場合のみ表示
+  if config.debug_mode then
+    vim.notify("[Security Report] " .. msg, log_level)
+  end
+end
+
 -- リスクレベルに応じたハイライトグループ
 local risk_highlights = {
   low = "DiagnosticInfo",
@@ -16,19 +34,34 @@ local risk_highlights = {
 
 -- 結果を保存
 function M.save_report(plugin_name, findings)
+  debug_log("レポート保存: プラグイン=" .. plugin_name .. ", 検出数=" .. #findings)
+  
+  -- 新しいレポートデータを設定
   last_report = {
     plugin_name = plugin_name,
-    findings = findings,
+    findings = findings or {},
     timestamp = os.time()
   }
+  
+  -- 成功を返す
+  return true
 end
 
 -- 最新のレポートを表示
 function M.show_last_report()
-  if not last_report.plugin_name or #last_report.findings == 0 then
+  debug_log("レポート表示リクエスト")
+  
+  if not last_report then
+    vim.notify("レポートオブジェクトが初期化されていません", vim.log.levels.WARN)
+    return
+  end
+  
+  if not last_report.plugin_name or not last_report.findings or #last_report.findings == 0 then
     vim.notify("利用可能なレポートがありません", vim.log.levels.INFO)
     return
   end
+  
+  debug_log("レポート表示: プラグイン=" .. last_report.plugin_name .. ", 検出数=" .. #last_report.findings)
   
   -- 新しいバッファを作成
   local bufnr = vim.api.nvim_create_buf(false, true)

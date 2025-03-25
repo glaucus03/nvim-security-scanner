@@ -2,6 +2,7 @@ local M = {}
 local patterns = require("nvim-security-scanner.patterns")
 local config -- 後で初期化する
 local ast_parser -- ASTパーサーモジュール（遅延ロード）
+local report_module -- レポートモジュール（遅延ロード）
 
 -- ASTパーサーモジュールを遅延ロードする関数
 local function load_ast_parser()
@@ -9,6 +10,14 @@ local function load_ast_parser()
     ast_parser = require("nvim-security-scanner.ast_parser")
   end
   return ast_parser
+end
+
+-- レポートモジュールを遅延ロードする関数
+local function load_report()
+  if not report_module then
+    report_module = require("nvim-security-scanner.report")
+  end
+  return report_module
 end
 
 -- プラグインのディレクトリパスを取得
@@ -285,7 +294,8 @@ function M.scan_plugin(plugin_name_or_dir)
   
   -- スキャン結果を保存
   local plugin_name = vim.fn.fnamemodify(plugin_dir, ":t")
-  require("nvim-security-scanner.report").save_report(plugin_name, all_findings)
+  local report = load_report()
+  report.save_report(plugin_name, all_findings)
   
   -- 結果を表示
   if #all_findings > 0 then
