@@ -121,10 +121,20 @@ local function scan_file(file_path)
     
     if success and ast_results then
       ast_issues = ast_results
+      
+      -- 開発者向けの通知
+      if config and config.debug_mode then
+        vim.notify("AST解析が成功しました: " .. #ast_issues .. " 件のセキュリティリスクを検出", vim.log.levels.DEBUG)
+      end
     else
       -- パース失敗時のエラーログ（デバッグ用）
       if config and config.debug_mode then
         vim.notify("AST解析中にエラーが発生しました: " .. (ast_results or "不明なエラー"), vim.log.levels.DEBUG)
+      end
+      
+      -- 実験的機能なので、エラーがあっても通常の解析は継続する
+      if not config or not config.debug_mode then
+        vim.notify("AST解析機能は現在実験段階です。問題が発生した場合は、詳細ログを確認するためにdebug_modeを有効にしてください。", vim.log.levels.INFO)
       end
     end
   end

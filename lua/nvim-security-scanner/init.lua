@@ -36,14 +36,17 @@ local default_config = {
   -- 高度なスキャンオプション
   advanced_scan = {
     -- ASTパーサーを使用した解析（実験的機能）
-    use_ast_parser = true,
+    use_ast_parser = false,  -- 初期実装のため、デフォルトはオフ
     
     -- コンテキスト認識機能を有効化
     context_awareness = true,
     
     -- 文字列リテラルのチェックを有効化
     check_string_literals = false
-  }
+  },
+  
+  -- デバッグモード（開発者向け）
+  debug_mode = false
 }
 
 -- ユーザー設定
