@@ -178,6 +178,64 @@ function M.scan_plugin(plugin_name_or_dir)
   return all_findings
 end
 
+-- GitHubリポジトリをスキャン
+function M.scan_github_repo(repo)
+  -- 一時ディレクトリを作成
+  local tmp_dir = vim.fn.stdpath("cache") .. "/security_scanner/" .. repo:gsub("/", "_")
+  
+  -- 古いスキャン結果があれば削除
+  if vim.fn.isdirectory(tmp_dir) == 1 then
+    vim.fn.delete(tmp_dir, "rf")
+  end
+  
+  -- ディレクトリを作成
+  vim.fn.mkdir(tmp_dir, "p")
+  
+  -- スキャン中の通知
+  vim.notify("リポジトリ " .. repo .. " をクローン中...", vim.log.levels.INFO)
+  
+  -- リポジトリをクローン
+  local clone_cmd = "git clone --depth=1 https://github.com/" .. repo .. " " .. tmp_dir .. " 2>&1"
+  local clone_result = vim.fn.system(clone_cmd)
+  
+  if vim.v.shell_error ~= 0 then
+    vim.notify("リポジトリのクローンに失敗しました: " .. clone_result, vim.log.levels.ERROR)
+    return {}
+  end
+  
+  vim.notify("リポジトリ " .. repo .. " のクローンが完了しました。スキャンを開始...", vim.log.levels.INFO)
+  
+  -- リポジトリをスキャン
+  local findings = M.scan_plugin(tmp_dir)
+  
+  -- リポジトリ情報をメタデータとして追加
+  for _, finding in ipairs(findings) do
+    finding.github_repo = repo
+  end
+  
+  -- 結果を保存 (スキャン元がGitHubリポジトリであることを示す)
+  local plugin_name = repo:match("[^/]+$") -- リポジトリ名の部分を抽出
+  require("nvim-security-scanner.report").save_report("GitHub:" .. plugin_name, findings)
+  
+  -- 結果を表示
+  if #findings > 0 then
+    vim.notify("GitHub リポジトリ " .. repo .. " で " .. #findings .. 
+              " 件のセキュリティリスクが検出されました。詳細は :SecurityReport で確認してください", 
+              vim.log.levels.WARN)
+  else
+    vim.notify("GitHub リポジトリ " .. repo .. " でセキュリティリスクは検出されませんでした", 
+              vim.log.levels.INFO)
+  end
+  
+  -- 設定に基づいて一時ディレクトリを削除
+  local config = require("nvim-security-scanner").config
+  if not config.keep_cloned_repos then
+    vim.fn.delete(tmp_dir, "rf")
+  end
+  
+  return findings
+end
+
 -- すべてのプラグインをスキャン
 function M.scan_all_plugins()
   local plugins = {}

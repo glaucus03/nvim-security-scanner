@@ -27,6 +27,9 @@ local default_config = {
     "tests/"
   },
   
+  -- GitHubリポジトリクローン後にディレクトリを保持
+  keep_cloned_repos = false,
+  
   -- プラグインマネージャー統合
   integrations = {
     lazy = true,
@@ -57,11 +60,47 @@ function M.setup(user_config)
   
   vim.api.nvim_create_user_command("SecurityScan", function(opts)
     if opts.args and opts.args ~= "" then
-      require("nvim-security-scanner.scanner").scan_plugin(opts.args)
+      -- GitHub リポジトリの形式かどうか確認 (user/repo)
+      if opts.args:match("^[%w%-%.]+/[%w%-%.]+$") then
+        -- GitHub リポジトリスキャン
+        require("nvim-security-scanner.scanner").scan_github_repo(opts.args)
+      else
+        -- 既存のプラグインスキャン
+        require("nvim-security-scanner.scanner").scan_plugin(opts.args)
+      end
     else
-      vim.notify("プラグイン名を指定してください", vim.log.levels.ERROR)
+      vim.notify("プラグイン名または 'user/repo' 形式のGitHubリポジトリを指定してください", vim.log.levels.ERROR)
     end
-  end, { nargs = "?" })
+  end, { nargs = "?", 
+          complete = function(ArgLead, CmdLine, CursorPos)
+            -- 補完候補を提供（インストール済みプラグインと最近スキャンしたGitHubリポジトリ）
+            local candidates = {}
+            
+            -- lazy.nvim プラグイン
+            local lazy_path = vim.fn.stdpath("data") .. "/lazy/"
+            if vim.fn.isdirectory(lazy_path) == 1 then
+              local plugins = vim.fn.readdir(lazy_path)
+              for _, plugin in ipairs(plugins) do
+                if plugin:lower():match(ArgLead:lower()) then
+                  table.insert(candidates, plugin)
+                end
+              end
+            end
+            
+            -- packer.nvim プラグイン
+            local packer_path = vim.fn.stdpath("data") .. "/site/pack/packer/start/"
+            if vim.fn.isdirectory(packer_path) == 1 then
+              local plugins = vim.fn.readdir(packer_path)
+              for _, plugin in ipairs(plugins) do
+                if plugin:lower():match(ArgLead:lower()) then
+                  table.insert(candidates, plugin)
+                end
+              end
+            end
+            
+            return candidates
+          end
+        })
   
   vim.api.nvim_create_user_command("SecurityReport", function()
     local report = require("nvim-security-scanner.report")
