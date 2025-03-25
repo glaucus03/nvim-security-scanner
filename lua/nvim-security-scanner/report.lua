@@ -104,7 +104,29 @@ function M.generate_report_content()
   local findings = M.last_report.findings
   
   -- タイトルとサマリー
-  table.insert(lines, "# セキュリティスキャンレポート: " .. M.last_report.plugin_name)
+  local title = "# セキュリティスキャンレポート: " .. M.last_report.plugin_name
+  
+  -- GitHub リポジトリかどうかを確認
+  local is_github = M.last_report.plugin_name:match("^GitHub:")
+  if is_github then
+    local repo_name = M.last_report.plugin_name:gsub("^GitHub:", "")
+    title = "# セキュリティスキャンレポート: " .. repo_name .. " (GitHub)"
+    
+    -- リポジトリへのリンクを追加
+    table.insert(lines, title)
+    table.insert(lines, "")
+    
+    -- GitHubユーザー名を抽出
+    local github_user = repo_name
+    if findings[1] and findings[1].github_repo then
+      github_user = findings[1].github_repo
+    end
+    
+    table.insert(lines, "リポジトリ: https://github.com/" .. github_user)
+  else
+    table.insert(lines, title)
+  end
+  
   table.insert(lines, "")
   
   -- タイムスタンプ

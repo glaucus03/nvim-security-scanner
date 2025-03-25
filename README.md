@@ -66,6 +66,9 @@ require("nvim-security-scanner").setup({
     "tests/"
   },
   
+  -- GitHubリポジトリクローン後にディレクトリを保持
+  keep_cloned_repos = false,
+  
   -- プラグインマネージャー統合
   integrations = {
     lazy = true,
@@ -79,7 +82,8 @@ require("nvim-security-scanner").setup({
 ### コマンド
 
 - `:SecurityScanAll` - 全プラグインをスキャン
-- `:SecurityScan <plugin-name>` - 特定のプラグインをスキャン
+- `:SecurityScan <plugin-name>` - インストール済みの特定のプラグインをスキャン
+- `:SecurityScan <user/repo>` - GitHub リポジトリをクローンしてスキャン（例: `:SecurityScan neovim/nvim-lspconfig`）
 - `:SecurityReport` - 最新のスキャンレポートを表示
 
 ### プラグイン更新時の動作
