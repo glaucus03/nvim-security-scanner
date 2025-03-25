@@ -5,6 +5,8 @@ Neovimプラグインのセキュリティリスクを検出・分析するた�
 ## 機能
 
 - **静的解析**: プラグインのLuaコードを解析し、危険なパターンを検出
+- **AST解析**: 抽象構文木(AST)を用いた高度な解析で偽陽性を削減（実験的機能）
+- **コンテキスト認識**: コード文脈を考慮した精度の高いセキュリティリスク検出 
 - **リスク評価**: 検出された各パターンに対してhigh/medium/lowのリスクレベルを評価
 - **プラグインマネージャー統合**: lazy.nvim/packer.nvim統合でプラグイン更新前にセキュリティチェック
 - **詳細レポート**: 検出されたリスクの詳細を表示
@@ -70,7 +72,22 @@ require("nvim-security-scanner").setup({
   integrations = {
     lazy = true,
     packer = true
-  }
+  },
+  
+  -- 高度なスキャンオプション（実験的機能）
+  advanced_scan = {
+    -- ASTパーサーを使用した解析
+    use_ast_parser = true,
+    
+    -- コンテキスト認識機能を有効化
+    context_awareness = true,
+    
+    -- 文字列リテラル内のパターンをスキャンするか
+    check_string_literals = false
+  },
+  
+  -- デバッグモード（開発者向け）
+  debug_mode = false
 })
 ```
 
