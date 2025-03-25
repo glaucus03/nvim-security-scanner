@@ -1,6 +1,15 @@
 local M = {}
 local patterns = require("nvim-security-scanner.patterns")
 local config -- 後で初期化する
+local ast_parser -- ASTパーサーモジュール（遅延ロード）
+
+-- ASTパーサーモジュールを遅延ロードする関数
+local function load_ast_parser()
+  if not ast_parser then
+    ast_parser = require("nvim-security-scanner.ast_parser")
+  end
+  return ast_parser
+end
 
 -- プラグインのディレクトリパスを取得
 local function get_plugin_dir(plugin_name)
@@ -96,6 +105,41 @@ local function scan_file(file_path)
   -- 有効なパターンを取得
   local active_patterns = patterns.get_patterns_by_risk(risk_threshold)
   
+  -- ファイル内容を文字列に変換
+  local content_str = table.concat(content, "\n")
+  local ast_issues = {}
+  
+  -- ASTベースの解析を実行（設定されている場合）
+  local use_ast = config and config.advanced_scan and config.advanced_scan.use_ast_parser
+  if use_ast then
+    local parser = load_ast_parser()
+    
+    -- ASTパーサーを使用して解析を試みる
+    local success, ast_results = pcall(function()
+      return parser.analyze_code(content_str, patterns)
+    end)
+    
+    if success and ast_results then
+      ast_issues = ast_results
+      
+      -- 開発者向けの通知
+      if config and config.debug_mode then
+        vim.notify("AST解析が成功しました: " .. #ast_issues .. " 件のセキュリティリスクを検出", vim.log.levels.DEBUG)
+      end
+    else
+      -- パース失敗時のエラーログ（デバッグ用）
+      if config and config.debug_mode then
+        vim.notify("AST解析中にエラーが発生しました: " .. (ast_results or "不明なエラー"), vim.log.levels.DEBUG)
+      end
+      
+      -- 実験的機能なので、エラーがあっても通常の解析は継続する
+      if not config or not config.debug_mode then
+        vim.notify("AST解析機能は現在実験段階です。問題が発生した場合は、詳細ログを確認するためにdebug_modeを有効にしてください。", vim.log.levels.INFO)
+      end
+    end
+  end
+  
+  -- 既存のパターンマッチング解析
   -- 各行に対してパターンマッチング
   for line_num, line in ipairs(content) do
     for _, pattern_info in ipairs(active_patterns) do
@@ -114,21 +158,99 @@ local function scan_file(file_path)
       if not ignored and line:match(pattern_info.pattern) then
         -- コメント行の場合はスキップ（単純なヒューリスティック）
         if not line:match("^%s*%-%-") then
-          -- 見つかった情報を記録
-          table.insert(findings, {
-            file = file_path,
-            line = line_num,
-            line_content = line,
-            pattern = pattern_info.pattern,
-            category = pattern_info.category,
-            risk = pattern_info.risk,
-            description = pattern_info.description,
-            legitimate_uses = pattern_info.legitimate_uses
-          })
+          local should_record = true
+          
+          -- コンテキスト認識機能が有効な場合
+          if config and config.advanced_scan and config.advanced_scan.context_awareness then
+            -- 文字列リテラル内かをチェック
+            local in_string = false
+            local prev_chars = ""
+            
+            -- 文字列リテラルチェックが有効な場合のみ実行
+            if not config.advanced_scan.check_string_literals then
+              -- 行の先頭から現在位置までを調べて文字列リテラル内かを判定
+              for i = 1, #line do
+                local char = line:sub(i, i)
+                if char == '"' or char == "'" then
+                  -- エスケープされていない引用符ならトグル
+                  if prev_chars:sub(-1) ~= "\\" then
+                    in_string = not in_string
+                  end
+                end
+                
+                prev_chars = prev_chars .. char
+                
+                -- パターンのマッチ位置まで到達したらチェック終了
+                if i == string.find(line, pattern_info.pattern) then
+                  break
+                end
+              end
+              
+              -- 文字列リテラル内の場合はスキップ
+              if in_string then
+                should_record = false
+              end
+            end
+          end
+          
+          -- 記録条件を満たす場合に記録
+          if should_record then
+            -- 見つかった情報を記録
+            table.insert(findings, {
+              file = file_path,
+              line = line_num,
+              line_content = line,
+              pattern = pattern_info.pattern,
+              category = pattern_info.category,
+              risk = pattern_info.risk,
+              description = pattern_info.description,
+              legitimate_uses = pattern_info.legitimate_uses,
+              detection_type = "pattern"
+            })
+          end
         end
       end
     end
   end
+  
+  -- ASTベースの解析結果を追加
+  for _, issue in ipairs(ast_issues) do
+    if issue.line then
+      -- 行番号が取得できている場合
+      local line_content = ""
+      if issue.line <= #content then
+        line_content = content[issue.line]
+      end
+      
+      -- 重複チェック
+      local is_duplicate = false
+      for _, finding in ipairs(findings) do
+        if finding.line == issue.line and finding.pattern == issue.pattern then
+          is_duplicate = true
+          break
+        end
+      end
+      
+      if not is_duplicate then
+        table.insert(findings, {
+          file = file_path,
+          line = issue.line,
+          line_content = line_content,
+          pattern = issue.pattern,
+          category = issue.category,
+          risk = issue.risk,
+          description = issue.description,
+          legitimate_uses = issue.legitimate_uses or "不明",
+          detection_type = "ast"
+        })
+      end
+    end
+  end
+  
+  -- 行番号順にソート
+  table.sort(findings, function(a, b)
+    return a.line < b.line
+  end)
   
   return findings
 end
