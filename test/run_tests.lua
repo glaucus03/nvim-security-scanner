@@ -249,24 +249,6 @@ tests.test_report_generation = function()
   end
 end
 
--- AST パーサーテスト
-tests.test_ast_parser = function()
-  print_header("AST パーサーテスト")
-  
-  -- AST パーサーテストスクリプトを実行
-  local success, result = pcall(function()
-    return dofile(root_dir .. "/test/test_ast_parser.lua")
-  end)
-  
-  if success then
-    print_success("AST パーサーテストを実行しました")
-    return true
-  else
-    print_failure("AST パーサーテストの実行に失敗しました: " .. tostring(result))
-    return false
-  end
-end
-
 -- 閾値テスト
 tests.test_risk_thresholds = function()
   print_header("リスク閾値テスト")
@@ -338,8 +320,7 @@ local function run_all_tests()
     "test_report_generation",
     "test_safe_plugin_scan",
     "test_risk_thresholds",
-    "test_exclude_paths",
-    "test_ast_parser"
+    "test_exclude_paths"
   }
   
   for _, name in ipairs(test_order) do

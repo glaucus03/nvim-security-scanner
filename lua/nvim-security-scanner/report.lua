@@ -78,11 +78,8 @@ function M.generate_report_content()
   
   -- リスクサマリー
   local risk_counts = { low = 0, medium = 0, high = 0 }
-  local detection_counts = { pattern = 0, ast = 0 }
-  
   for _, finding in ipairs(findings) do
     risk_counts[finding.risk] = (risk_counts[finding.risk] or 0) + 1
-    detection_counts[finding.detection_type or "pattern"] = (detection_counts[finding.detection_type or "pattern"] or 0) + 1
   end
   
   table.insert(lines, "## サマリー")
@@ -91,13 +88,6 @@ function M.generate_report_content()
   table.insert(lines, "- 高リスク (High): " .. risk_counts.high .. "件")
   table.insert(lines, "- 中リスク (Medium): " .. risk_counts.medium .. "件")
   table.insert(lines, "- 低リスク (Low): " .. risk_counts.low .. "件")
-  table.insert(lines, "")
-  
-  -- 検出方法ごとのサマリー
-  table.insert(lines, "### 検出方法")
-  table.insert(lines, "")
-  table.insert(lines, "- パターンマッチング: " .. (detection_counts.pattern or 0) .. "件")
-  table.insert(lines, "- AST解析: " .. (detection_counts.ast or 0) .. "件")
   table.insert(lines, "")
   
   -- カテゴリ別サマリー
@@ -136,23 +126,10 @@ function M.generate_report_content()
     
     for i, finding in ipairs(file_findings) do
       local risk_str = "["..string.upper(finding.risk).."]"
-      local detection_type = finding.detection_type or "pattern"
-      local detection_icon = ""
-      
-      if detection_type == "ast" then
-        detection_icon = "[AST] "
-      end
-      
-      table.insert(lines, i .. ". " .. detection_icon .. risk_str .. " 行 " .. finding.line .. ": " .. finding.pattern)
+      table.insert(lines, i .. ". " .. risk_str .. " 行 " .. finding.line .. ": " .. finding.pattern)
       table.insert(lines, "   コード: `" .. finding.line_content:gsub("^%s+", "") .. "`")
       table.insert(lines, "   説明: " .. finding.description)
       table.insert(lines, "   正当な使用例: " .. finding.legitimate_uses)
-      
-      -- AST検出の場合は追加情報
-      if detection_type == "ast" then
-        table.insert(lines, "   検出方法: AST解析（高精度）")
-      end
-      
       table.insert(lines, "")
     end
   end
