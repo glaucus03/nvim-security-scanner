@@ -64,7 +64,17 @@ function M.setup(user_config)
   end, { nargs = "?" })
   
   vim.api.nvim_create_user_command("SecurityReport", function()
-    require("nvim-security-scanner.report").show_last_report()
+    local report = require("nvim-security-scanner.report")
+    
+    -- テスト用レポート生成機能を追加
+    if vim.fn.exists("g:security_scanner_debug") == 1 and vim.g.security_scanner_debug == 1 then
+      -- デバッグモードの場合、テストレポートを作成するオプションを提供
+      if vim.fn.confirm("テスト用レポートを生成しますか？", "&Yes\n&No", 2) == 1 then
+        report.create_test_report()
+      end
+    end
+    
+    report.show_last_report()
   end, {})
   
   -- プラグインマネージャー統合の初期化

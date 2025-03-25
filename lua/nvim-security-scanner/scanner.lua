@@ -200,23 +200,60 @@ function M.scan_all_plugins()
     end
   end
   
+  -- サンプルプラグインがあれば追加（テスト環境用）
+  local test_path = vim.fn.getcwd() .. "/test/sample-plugins/"
+  if vim.fn.isdirectory(test_path) == 1 then
+    vim.api.nvim_echo({{"テスト環境でサンプルプラグインを検出", "WarningMsg"}}, false, {})
+    local test_plugins = vim.fn.readdir(test_path)
+    for _, plugin in ipairs(test_plugins) do
+      table.insert(plugins, test_path .. plugin)
+    end
+  end
+  
   -- すべてのプラグインをスキャン
   local total_findings = 0
   local risky_plugins = {}
+  local all_findings = {}
   
   for _, plugin_dir in ipairs(plugins) do
+    local plugin_name = vim.fn.fnamemodify(plugin_dir, ":t")
+    
+    -- スキャンステータスを表示
+    vim.api.nvim_echo({{"スキャン中: " .. plugin_name, "None"}}, false, {})
+    
+    -- プラグインをスキャン
     local findings = M.scan_plugin(plugin_dir)
+    
     if #findings > 0 then
       total_findings = total_findings + #findings
-      table.insert(risky_plugins, vim.fn.fnamemodify(plugin_dir, ":t"))
+      table.insert(risky_plugins, plugin_name)
+      
+      -- すべての発見を記録
+      for _, finding in ipairs(findings) do
+        -- ファイルパスをプラグイン名で補強
+        finding.plugin_name = plugin_name
+        table.insert(all_findings, finding)
+      end
     end
   end
   
   -- 結果のサマリーを表示
   if total_findings > 0 then
-    vim.notify("スキャン完了: " .. #plugins .. " プラグイン中 " .. #risky_plugins .. 
-              " プラグインで合計 " .. total_findings .. " 件のセキュリティリスクが検出されました。",
-              vim.log.levels.WARN)
+    -- 総合レポートを作成
+    require("nvim-security-scanner.report").save_report("スキャン結果", all_findings)
+    
+    -- 結果を通知
+    local msg = "スキャン完了: " .. #plugins .. " プラグイン中 " .. #risky_plugins .. 
+                " プラグインで合計 " .. total_findings .. " 件のセキュリティリスクが検出されました。\n" ..
+                ":SecurityReport で詳細を確認できます"
+    
+    -- リスクのあるプラグインの一覧を追加
+    msg = msg .. "\n\nリスクのあるプラグイン:"
+    for _, plugin in ipairs(risky_plugins) do
+      msg = msg .. "\n- " .. plugin
+    end
+    
+    vim.notify(msg, vim.log.levels.WARN)
   else
     vim.notify("スキャン完了: " .. #plugins .. " プラグインすべてでセキュリティリスクは検出されませんでした。",
               vim.log.levels.INFO)
