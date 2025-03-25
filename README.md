@@ -104,3 +104,19 @@ MIT
 
 バグ報告や機能要望は[Issues](https://github.com/glaucus03/nvim-security-scanner/issues)に投稿してください。
 プルリクエストも歓迎します！
+
+## 開発
+
+### テスト
+
+テストを実行するには以下のコマンドを使用します：
+
+```bash
+nvim --headless -u NONE -c "lua dofile('test/run_tests.lua')" -c "q"
+```
+
+開発中の場合は、以下のようにNVIM_CONFIG変数を設定して特定の設定を使用せずにプラグインをテストできます：
+
+```bash
+NVIM_CONFIG="" nvim --cmd "set rtp+=$(pwd)" -c "lua require('nvim-security-scanner').setup()"
+```

@@ -1,7 +1,6 @@
 local M = {}
 local patterns = require("nvim-security-scanner.patterns")
-local config = require("nvim-security-scanner").config
-local report = require("nvim-security-scanner.report")
+local config -- 後で初期化する
 
 -- プラグインのディレクトリパスを取得
 local function get_plugin_dir(plugin_name)
@@ -37,7 +36,7 @@ local function collect_lua_files(dir)
   local exclude_pattern = ""
   
   -- 除外パスのパターンを構築
-  if config.exclude_paths and #config.exclude_paths > 0 then
+  if config and config.exclude_paths and #config.exclude_paths > 0 then
     exclude_pattern = table.concat(config.exclude_paths, "|")
   end
   
@@ -51,7 +50,7 @@ local function collect_lua_files(dir)
       if vim.fn.isdirectory(full_path) == 1 then
         -- 除外パスチェック
         local should_exclude = false
-        if exclude_pattern ~= "" then
+        if exclude_pattern ~= "" and config and config.exclude_paths then
           for _, exclude in ipairs(config.exclude_paths) do
             if full_path:match(exclude) then
               should_exclude = true
@@ -76,6 +75,11 @@ local function collect_lua_files(dir)
   return files
 end
 
+-- 初期化機能を追加
+function M.init(user_config)
+  config = user_config
+end
+
 -- ファイルをスキャンして危険なパターンを検出
 local function scan_file(file_path)
   local findings = {}
@@ -86,8 +90,11 @@ local function scan_file(file_path)
     return findings
   end
   
+  -- 設定が初期化されていない場合はデフォルト値を使用
+  local risk_threshold = config and config.risk_threshold or "medium"
+  
   -- 有効なパターンを取得
-  local active_patterns = patterns.get_patterns_by_risk(config.risk_threshold)
+  local active_patterns = patterns.get_patterns_by_risk(risk_threshold)
   
   -- 各行に対してパターンマッチング
   for line_num, line in ipairs(content) do
@@ -95,7 +102,7 @@ local function scan_file(file_path)
       local ignored = false
       
       -- 無視するパターンチェック
-      if config.ignore_patterns and #config.ignore_patterns > 0 then
+      if config and config.ignore_patterns and #config.ignore_patterns > 0 then
         for _, ignore_pattern in ipairs(config.ignore_patterns) do
           if pattern_info.pattern == ignore_pattern then
             ignored = true
@@ -156,7 +163,7 @@ function M.scan_plugin(plugin_name_or_dir)
   
   -- スキャン結果を保存
   local plugin_name = vim.fn.fnamemodify(plugin_dir, ":t")
-  report.save_report(plugin_name, all_findings)
+  require("nvim-security-scanner.report").save_report(plugin_name, all_findings)
   
   -- 結果を表示
   if #all_findings > 0 then
