@@ -179,13 +179,25 @@ end
 
 -- バッファのキーマッピングを設定
 function M.setup_buffer_mappings(bufnr)
-  local opts = { noremap = true, silent = true, buffer = bufnr }
+  local opts = { noremap = true, silent = true }
   
-  -- 'q'でバッファを閉じる
-  vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', ':close<CR>', opts)
-  
-  -- エンターキーでファイルを開く
-  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<CR>', ':lua require("nvim-security-scanner.report").open_file_at_line()<CR>', opts)
+  -- Neovim 0.7.0以降
+  if vim.keymap and vim.keymap.set then
+    -- 'q'でバッファを閉じる
+    vim.keymap.set('n', 'q', ':close<CR>', { noremap = true, silent = true, buffer = bufnr })
+    
+    -- エンターキーでファイルを開く
+    vim.keymap.set('n', '<CR>', ':lua require("nvim-security-scanner.report").open_file_at_line()<CR>', 
+                   { noremap = true, silent = true, buffer = bufnr })
+  else
+    -- 旧バージョン用
+    -- 'q'でバッファを閉じる
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', ':close<CR>', opts)
+    
+    -- エンターキーでファイルを開く
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', '<CR>', 
+                               ':lua require("nvim-security-scanner.report").open_file_at_line()<CR>', opts)
+  end
 end
 
 -- カーソル位置のファイルを開く
